@@ -1,0 +1,16 @@
+env: "local"
+
+access_token_ttl: 1h
+refresh_token_ttl: 168h
+accessTokenSigningKey: "accessTokenSigningKey"
+refreshTokenSigningKey: "refreshTokenSigningKey"
+port: 8080
+host: "localhost"
+
+db:
+  db_host: "localhost"
+  db_port: "5432"
+  db_password: "admin"
+  db_name: "sound_lock"
+  ssl_mode: "disable"
+  username: "admin"
