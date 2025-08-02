@@ -6,17 +6,21 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+type RefreshExecutor interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
 
 // RefreshTokenStorage отвечает за операции с таблицей refresh_tokens.
 // Хранит подключение к базе данных (pgxpool).
 type RefreshTokenStorage struct {
-	db *pgxpool.Pool
+	db RefreshExecutor
 }
 
 // NewRefreshToken создает новый экземпляр RefreshTokenStorage с подключением к БД.
-func NewRefreshToken(db *pgxpool.Pool) *RefreshTokenStorage {
+func NewRefreshToken(db RefreshExecutor) *RefreshTokenStorage {
 	return &RefreshTokenStorage{
 		db: db,
 	}

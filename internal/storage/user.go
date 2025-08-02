@@ -6,18 +6,21 @@ import (
 	"sound_lock/internal/domain/models"
 
 	"github.com/google/uuid"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
+
+type UserExecutor interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 // User - структура для работы с таблицами пользователей и авторизацией.
 // Хранит подключение к базе данных (pgxpool).
 type User struct {
-	db *pgxpool.Pool
+	db UserExecutor
 }
 
 // NewUser - конструктор, возвращает новый экземпляр Auth с подключением к базе данных.
-func NewUser(db *pgxpool.Pool) *User {
+func NewUser(db UserExecutor) *User {
 	return &User{
 		db: db,
 	}
