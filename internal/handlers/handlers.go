@@ -4,6 +4,7 @@ import (
 	audio "sound_lock/internal/handlers/audio_password"
 	"sound_lock/internal/handlers/auth"
 	"sound_lock/internal/handlers/users"
+	"sound_lock/internal/service"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -12,12 +13,13 @@ import (
 // Handlers — структура, содержащая экземпляр Echo,
 // чтобы централизованно настраивать все роуты приложения.
 type Handlers struct {
-	e *echo.Echo
+	e           *echo.Echo
+	authService *service.Auth
 }
 
 // New — конструктор, создающий новый экземпляр Handlers
-func New(e *echo.Echo) *Handlers {
-	return &Handlers{e: e}
+func New(e *echo.Echo, authService *service.Auth) *Handlers {
+	return &Handlers{e: e, authService: authService}
 }
 
 // SetupHandlers — метод, настраивающий все маршруты и middleware приложения.
@@ -33,7 +35,7 @@ func (h *Handlers) SetupHandlers() {
 
 	// Группа эндпоинтов для аутентификации (/api/v1/auth)
 	authGroup := api.Group("/auth")
-	auth.New(authGroup).SetupAuthHandlers()
+	auth.New(h.authService).SetupAuthHandlers(authGroup)
 
 	// Группа эндпоинтов, связанных с пользователями (/api/v1/users)
 	usersGroup := api.Group("/users")

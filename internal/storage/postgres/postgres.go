@@ -25,5 +25,9 @@ func New(context context.Context, config *config.Config) *pgxpool.Pool {
 		panic(err)
 	}
 
+	if err := conn.Ping(context); err != nil {
+		panic(err)
+	}
+
 	return conn
 }
