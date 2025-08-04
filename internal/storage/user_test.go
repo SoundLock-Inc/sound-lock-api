@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestStorage_CreateUser_Success проверяет успешное создание пользователя.
+// Ожидается:
+//   - корректный возврат ID пользователя;
+//   - отсутствие ошибок;
+//   - выполнение всех ожиданий мок-объекта.
 func TestStorage_CreateUser_Success(t *testing.T) {
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
@@ -23,7 +28,8 @@ func TestStorage_CreateUser_Success(t *testing.T) {
 	password := "hashedPassword"
 	userID := uuid.New()
 
-	mock.ExpectQuery("insert into user").WithArgs(email, password).WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(userID))
+	mock.ExpectQuery("insert into user").WithArgs(email, password).
+		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(userID))
 
 	id, err := userStorage.CreateUser(context.Background(), email, password)
 	require.NoError(t, err)
@@ -31,6 +37,11 @@ func TestStorage_CreateUser_Success(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+// TestStorage_CreateUser_ErrorInsert проверяет поведение при ошибке вставки в БД.
+// Ожидается:
+//   - ошибка от метода CreateUser;
+//   - пустой ID;
+//   - выполнение всех ожиданий мок-объекта.
 func TestStorage_CreateUser_ErrorInsert(t *testing.T) {
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
@@ -41,7 +52,8 @@ func TestStorage_CreateUser_ErrorInsert(t *testing.T) {
 	email := "test@example.com"
 	password := "hashedPassword"
 
-	mock.ExpectQuery("insert into user").WithArgs(email, password).WillReturnError(errors.New("error insert user"))
+	mock.ExpectQuery("insert into user").WithArgs(email, password).
+		WillReturnError(errors.New("error insert user"))
 
 	id, err := userStorage.CreateUser(context.Background(), email, password)
 	require.Error(t, err)
@@ -49,6 +61,11 @@ func TestStorage_CreateUser_ErrorInsert(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+// TestStorage_ReadUser_Success проверяет успешное чтение пользователя из БД.
+// Ожидается:
+//   - возврат корректной структуры пользователя;
+//   - отсутствие ошибок;
+//   - выполнение всех ожиданий мок-объекта.
 func TestStorage_ReadUser_Success(t *testing.T) {
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
@@ -60,7 +77,8 @@ func TestStorage_ReadUser_Success(t *testing.T) {
 	password := "hashedPassword"
 	userID := uuid.New()
 
-	mock.ExpectQuery("select id, email, password from users").WithArgs(email).WillReturnRows(pgxmock.NewRows([]string{"id", "email", "password"}).AddRow(userID, email, password))
+	mock.ExpectQuery("select id, email, password from users").WithArgs(email).
+		WillReturnRows(pgxmock.NewRows([]string{"id", "email", "password"}).AddRow(userID, email, password))
 
 	user, err := userStorage.ReadUser(context.Background(), email)
 
@@ -71,6 +89,11 @@ func TestStorage_ReadUser_Success(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+// TestStorage_ReadUser_ErrorReadUser проверяет поведение при ошибке выборки данных из БД.
+// Ожидается:
+//   - ошибка от метода ReadUser;
+//   - возврат пустой структуры UserDTO;
+//   - выполнение всех ожиданий мок-объекта.
 func TestStorage_ReadUser_ErrorReadUser(t *testing.T) {
 	mock, err := pgxmock.NewPool()
 	require.NoError(t, err)
@@ -80,7 +103,8 @@ func TestStorage_ReadUser_ErrorReadUser(t *testing.T) {
 
 	email := "test@example.com"
 	eUser := models.UserDTO{}
-	mock.ExpectQuery("select id, email, password from users").WithArgs(email).WillReturnError(errors.New("error read user"))
+	mock.ExpectQuery("select id, email, password from users").WithArgs(email).
+		WillReturnError(errors.New("error read user"))
 
 	user, err := userStorage.ReadUser(context.Background(), email)
 
