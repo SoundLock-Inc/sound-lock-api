@@ -19,4 +19,5 @@ FROM alpine:3.18
 WORKDIR /root/
 COPY --from=builder /app/main .
 COPY config ./config
+COPY .env .env
 CMD ["./main", "--config_path=./config/prod.yaml"]
