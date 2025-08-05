@@ -38,7 +38,9 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: .
+          source: |
+            ./*
+            !.env
           target: /root/app/sound-lock
           rm: true # очищаем папку перед копированием (чтобы не было мусора)
 
