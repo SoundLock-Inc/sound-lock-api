@@ -34,7 +34,7 @@ func New(
 func (h *Handlers) SetupAuthHandlers(eg *echo.Group) {
 	eg.POST("/login", h.login)       // Эндпоинт для входа в систему
 	eg.POST("/register", h.register) // Эндпоинт для регистрации нового пользователя
-	eg.POST("/refresh", h.refresh)   // Эндпоинт для обновления токена
+	eg.PATCH("/refresh", h.refresh)  // Эндпоинт для обновления токена
 	eg.POST("/logout", h.logout)     // Эндпоинт для выхода пользователя из системы
 }
 

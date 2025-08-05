@@ -2,10 +2,12 @@ package config
 
 import (
 	"flag"
+	"log"
 	"os"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 )
 
 // Config содержит все конфигурационные параметры сервиса.
@@ -13,21 +15,21 @@ type Config struct {
 	Env                    string        `yaml:"env" env-default:"local"`
 	AccessTokenTTL         time.Duration `yaml:"access_token_ttl" env-required:"true"`
 	RefreshTokenTTL        time.Duration `yaml:"refresh_token_ttl" env-required:"true"`
-	AccessTokenSigningKey  string        `yaml:"accessTokenSigningKey"`
-	RefreshTokenSigningKey string        `yaml:"refreshTokenSigningKey"`
+	AccessTokenSigningKey  string        `env:"ACCESS_TOKEN_SIGNING_KEY"`
+	RefreshTokenSigningKey string        `env:"REFRESH_TOKEN_SIGNING_KEY"`
 	Port                   int           `yaml:"port"`
 	Host                   string        `yaml:"host"`
-	DB                     DBConfig      `yaml:"db"`
+	DB                     DBConfig
 }
 
 // DBConfig определяет параметры подключения к базе данных.
 type DBConfig struct {
-	DBPort   string `yaml:"db_port"`                       // Порт БД
-	SSLMode  string `yaml:"ssl_mode"`                      // Режим SSL-соединения
-	Username string `yaml:"username"`                      // Имя пользователя БД
-	Password string `env:"DB_PASSWORD" yaml:"db_password"` // Пароль БД (загружается из переменной окружения)
-	DBName   string `env:"DBNAME" yaml:"db_name"`          // Имя базы данных (может быть переопределено через ENV)
-	DBHost   string `yaml:"db_host"`                       // Адрес хоста БД
+	DBPort   string `env:"DB_PORT"`     // Порт БД
+	SSLMode  string `env:"SSL_MODE"`    // Режим SSL-соединения
+	Username string `env:"DB_USER"`     // Имя пользователя БД
+	Password string `env:"DB_PASSWORD"` // Пароль БД (загружается из переменной окружения)
+	DBName   string `env:"DB_NAME"`     // Имя базы данных (может быть переопределено через ENV)
+	DBHost   string `env:"DB_HOST"`     // Адрес хоста БД
 }
 
 // MustLoad загружает конфигурацию из файла или завершает работу при ошибке.
@@ -47,6 +49,10 @@ func MustLoad() *Config {
 // Проверяет существование файла, парсит конфигурацию и возвращает объект Config.
 // Вызывает панику при любой ошибке загрузки или парсинга.
 func MustLoadByPath(path string) *Config {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Env file does not exist: ", err.Error())
+	}
+
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		panic("config file not found: " + path)
 	}

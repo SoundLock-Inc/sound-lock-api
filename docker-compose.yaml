@@ -5,12 +5,29 @@ services:
     container_name: sound_lock_db
     restart: always
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=sound_lock
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  app:
+    build: .
+    container_name: sound_lock_app
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SSL_MODE=${SSL_MODE}
+      - DB_USER=${DB_USER}
+      - ACCESS_TOKEN_SIGNING_KEY=${ACCESS_TOKEN_SIGNING_KEY}
+      - REFRESH_TOKEN_SIGNING_KEY=${REFRESH_TOKEN_SIGNING_KEY}
+    depends_on:
+      - db
 volumes:
   postgres_data:
