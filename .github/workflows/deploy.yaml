@@ -31,20 +31,36 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Копируем код на сервер, исключая .env
+      # Копируем проект на сервер (без .env)
       - name: Copy project to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: |
-            ./*
-            !.env
+          source: ./
           target: /root/app/sound-lock
-          rm: true # очищаем папку перед копированием (чтобы не было мусора)
 
-      # Перезапуск приложения
+      # Создаём .env на сервере из GitHub Secrets
+      - name: Create .env on server
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cat <<EOF > /root/app/sound-lock/.env
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            ACCESS_TOKEN_SIGNING_KEY=${{ secrets.ACCESS_TOKEN_SIGNING_KEY }}
+            REFRESH_TOKEN_SIGNING_KEY=${{ secrets.REFRESH_TOKEN_SIGNING_KEY }}
+            SSL_MODE=disable
+            EOF
+
+      # Перезапуск контейнеров
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v0.1.8
         with:
@@ -53,14 +69,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            if [ ! -f .env ]; then
-              echo ".env не найден! Копируй его вручную на сервер."
-              exit 1
-            fi
             docker-compose down || true
             docker-compose up -d --build
 
-      # Миграции (с учетом .env)
+      # Миграции
       - name: Run migrations
         uses: appleboy/ssh-action@v0.1.8
         with:
@@ -69,12 +81,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            if [ ! -f .env ]; then
-              echo ".env не найден! Прерывание..."
-              exit 1
-            fi
-            # загружаем переменные из .env
-            export $(grep -v '^#' .env | xargs)
+            export $(cat .env | xargs)
             docker run --rm \
               -v $(pwd)/migrations:/migrations \
               --network host \
