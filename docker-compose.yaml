@@ -18,15 +18,8 @@ services:
     restart: always
     ports:
       - "8080:8080"
-    environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - SSL_MODE=${SSL_MODE}
-      - DB_USER=${DB_USER}
-      - ACCESS_TOKEN_SIGNING_KEY=${ACCESS_TOKEN_SIGNING_KEY}
-      - REFRESH_TOKEN_SIGNING_KEY=${REFRESH_TOKEN_SIGNING_KEY}
+    env_file:
+      - .env
     depends_on:
       - db
 volumes:
