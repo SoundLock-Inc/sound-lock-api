@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v3
 
       # Копируем код на сервер, исключая .env и служебные папки
-      - name: Copy project to VPS (без .env)
+      - name: Copy project to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -62,6 +62,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
+            export $(cat .env | xargs)
             docker run --rm \
               -v $(pwd)/migrations:/migrations \
               --network host \
