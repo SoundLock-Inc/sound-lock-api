@@ -1,14 +1,21 @@
-FROM golang:1.23.4-alpine
+# ---------- Stage 1: Build ----------
+FROM golang:1.23.4-alpine AS builder
 
 WORKDIR /app
 
+# Копируем только go.mod и go.sum, чтобы кешировать зависимости
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Копируем остальной код
 COPY . .
 
-RUN go build -o main .
+# Сборка бинарника из ./cmd/server
+RUN go build -o main ./cmd/server
 
-EXPOSE 8080
+# ---------- Stage 2: Final ----------
+FROM alpine:3.18
 
-CMD ["./cmd/server/main.go"]
+WORKDIR /root/
+COPY --from=builder /app/main .
+CMD ["./main"]
