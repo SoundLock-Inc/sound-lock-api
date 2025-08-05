@@ -61,7 +61,7 @@ jobs:
             EOF
 
       # Перезапуск контейнеров
-      - name: Deploy on VPS
+      - name: Deploy app
         uses: appleboy/ssh-action@v0.1.8
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -69,10 +69,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            docker-compose down || true
-            docker-compose up -d --build
+            docker compose down || true
+            docker compose up -d --build app db
 
-      # Миграции
+      # Миграции (внутри сети docker compose)
       - name: Run migrations
         uses: appleboy/ssh-action@v0.1.8
         with:
@@ -81,10 +81,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            export $(cat .env | xargs)
-            docker run --rm \
-              -v $(pwd)/migrations:/migrations \
-              --network host \
-              migrate/migrate \
-              -path=/migrations \
-              -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable" up
+            docker compose run --rm migrate
