@@ -69,8 +69,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            docker compose down || true
-            docker compose up -d --build app db
+            docker-compose down || true
+            docker-compose up -d --build app db
 
       # Миграции (внутри сети docker compose)
       - name: Run migrations
@@ -81,4 +81,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/app/sound-lock
-            docker compose run --rm migrate
+            docker-compose run --rm migrate
