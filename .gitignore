@@ -12,3 +12,5 @@
 /assets
 /.DS_Store
 /.zed
+/migrations
+/config/local.yaml
