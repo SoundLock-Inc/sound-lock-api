@@ -12,6 +12,7 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   app:
     build: .
     container_name: sound_lock_app
@@ -20,9 +21,24 @@ services:
       - "8080:8080"
     env_file:
       - .env
-    volumes:
-      - ./.env:/.env
     depends_on:
       - db
+
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    entrypoint:
+      [
+        "migrate",
+        "-path=/migrations",
+        "-database=postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable",
+        "up",
+      ]
+    env_file:
+      - .env
+    depends_on:
+      - db
+
 volumes:
   postgres_data:
