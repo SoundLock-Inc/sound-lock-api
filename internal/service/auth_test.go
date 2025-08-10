@@ -1,11 +1,10 @@
-package service_test
+package service
 
 import (
 	"context"
 	"errors"
 	"sound_lock/internal/domain/models"
 	"sound_lock/internal/lib/jwt"
-	"sound_lock/internal/service"
 	"sound_lock/internal/service/mocks"
 	"testing"
 	"time"
@@ -16,6 +15,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type authMocks struct {
+	userSaver           *mocks.MockUserSaver
+	userProvider        *mocks.MockUserProvider
+	refreshTokenSaver   *mocks.MockRefreshTokenSaver
+	refreshTokenUpdater *mocks.MockRefreshTokenProvider
+	refreshTokenRemover *mocks.MockRefreshTokenRemover
+	jwtMethods          *mocks.MockJWTMethods
+}
+
+func setupAuthMocks(ctrl *gomock.Controller) (*Auth, *authMocks) {
+	mocks := &authMocks{
+		userSaver:           mocks.NewMockUserSaver(ctrl),
+		userProvider:        mocks.NewMockUserProvider(ctrl),
+		refreshTokenSaver:   mocks.NewMockRefreshTokenSaver(ctrl),
+		refreshTokenUpdater: mocks.NewMockRefreshTokenProvider(ctrl),
+		refreshTokenRemover: mocks.NewMockRefreshTokenRemover(ctrl),
+		jwtMethods:          mocks.NewMockJWTMethods(ctrl),
+	}
+
+	auth := newAuthTest(mocks.userProvider, mocks.userSaver, mocks.refreshTokenSaver, mocks.refreshTokenUpdater, mocks.refreshTokenRemover, mocks.jwtMethods, 15*time.Minute, 7*24*time.Hour)
+
+	return auth, mocks
+}
 
 const (
 	email    = "test@example.com"
@@ -29,14 +52,11 @@ func TestAuth_RegisterUser_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	expectedUUID := "uuid-123"
-	mockUserSaver := mocks.NewMockUserSaver(ctrl)
 
-	mockUserSaver.EXPECT().CreateUser(gomock.Any(), email, gomock.Any()).Return(UUID, nil)
-
-	auth := &service.Auth{
-		UserSaver: mockUserSaver,
-	}
+	mocks.userSaver.EXPECT().CreateUser(gomock.Any(), email, gomock.Any()).Return(UUID, nil)
 
 	uuid, err := auth.RegisterUser(context.Background(), email, password)
 
@@ -49,14 +69,9 @@ func TestAuth_RegisterUser_Success(t *testing.T) {
 func TestAuth_RegisterUser_CreateUserError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	auth, mocks := setupAuthMocks(ctrl)
 
-	mockUserSaver := mocks.NewMockUserSaver(ctrl)
-
-	mockUserSaver.EXPECT().CreateUser(gomock.Any(), email, gomock.Any()).Return("", errors.New("Error create user"))
-
-	auth := &service.Auth{
-		UserSaver: mockUserSaver,
-	}
+	mocks.userSaver.EXPECT().CreateUser(gomock.Any(), email, gomock.Any()).Return("", errors.New("Error create user"))
 
 	uuid, err := auth.RegisterUser(context.Background(), email, password)
 
@@ -69,6 +84,7 @@ func TestAuth_RegisterUser_CreateUserError(t *testing.T) {
 func TestAuth_LoginUser_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	auth, mocks := setupAuthMocks(ctrl)
 
 	userID := uuid.New()
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -77,20 +93,10 @@ func TestAuth_LoginUser_Success(t *testing.T) {
 	accessToken := "access-token"
 	refreshToken := "refresh-token"
 
-	mockUserProvider := mocks.NewMockUserProvider(ctrl)
-	mockRefreshTokenSaver := mocks.NewMockRefreshTokenSaver(ctrl)
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-
-	mockUserProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID.String()).Return(accessToken, nil)
-	mockJwt.EXPECT().GenerateRefreshToken(userID.String()).Return(refreshToken, nil)
-	mockRefreshTokenSaver.EXPECT().CreateRefreshToken(gomock.Any(), userID.String(), refreshToken, gomock.Any()).Return(nil)
-
-	auth := &service.Auth{
-		UserProvider:      mockUserProvider,
-		RefreshTokenSaver: mockRefreshTokenSaver,
-		Jwt:               mockJwt,
-	}
+	mocks.userProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID.String()).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID.String()).Return(refreshToken, nil)
+	mocks.refreshTokenSaver.EXPECT().CreateRefreshToken(gomock.Any(), userID.String(), refreshToken, gomock.Any()).Return(nil)
 
 	tokens, err := auth.LoginUser(context.Background(), email, password)
 
@@ -105,12 +111,9 @@ func TestAuth_LoginUser_ErrorReadUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserProvider := mocks.NewMockUserProvider(ctrl)
+	auth, mocks := setupAuthMocks(ctrl)
 
-	mockUserProvider.EXPECT().ReadUser(gomock.Any(), email).Return(models.UserDTO{}, errors.New("Error read user"))
-	jwtManager := jwt.NewJWTManager("access-secret", "refresh-secret", time.Minute, time.Hour)
-
-	auth := &service.Auth{UserProvider: mockUserProvider, Jwt: jwtManager}
+	mocks.userProvider.EXPECT().ReadUser(gomock.Any(), email).Return(models.UserDTO{}, errors.New("Error read user"))
 
 	tokens, err := auth.LoginUser(context.Background(), email, password)
 
@@ -124,17 +127,14 @@ func TestAuth_LoginUser_ErrorGenerateAccessToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	userID := uuid.New()
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	testUser := models.UserDTO{UUID: userID, Email: email, Password: string(hashedPassword)}
 
-	mockUserProvider := mocks.NewMockUserProvider(ctrl)
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-
-	mockUserProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID.String()).Return("", errors.New("Error access token generate"))
-
-	auth := &service.Auth{UserProvider: mockUserProvider, Jwt: mockJwt}
+	mocks.userProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID.String()).Return("", errors.New("Error access token generate"))
 
 	tokens, err := auth.LoginUser(context.Background(), email, password)
 
@@ -148,20 +148,17 @@ func TestAuth_LoginUser_ErrorGenerateRefreshToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	userID := uuid.New()
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	testUser := models.UserDTO{UUID: userID, Email: email, Password: string(hashedPassword)}
 	accessToken := "access-token"
 
-	mockUserProvider := mocks.NewMockUserProvider(ctrl)
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
+	mocks.userProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
 
-	mockUserProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
-
-	mockJwt.EXPECT().GenerateAccessToken(userID.String()).Return(accessToken, nil)
-	mockJwt.EXPECT().GenerateRefreshToken(userID.String()).Return("", errors.New("Error generate refresh token"))
-
-	auth := &service.Auth{UserProvider: mockUserProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID.String()).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID.String()).Return("", errors.New("Error generate refresh token"))
 
 	tokens, err := auth.LoginUser(context.Background(), email, password)
 
@@ -175,19 +172,18 @@ func TestAuth_LoginUser_ErrorCreateRefreshToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	userID := uuid.New()
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	testUser := models.UserDTO{UUID: userID, Email: email, Password: string(hashedPassword)}
+	accessToken := "access-token"
+	refreshToken := "refresh-token"
 
-	mockUserProvider := mocks.NewMockUserProvider(ctrl)
-	mockRefreshTokenSaver := mocks.NewMockRefreshTokenSaver(ctrl)
-
-	mockUserProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
-	mockRefreshTokenSaver.EXPECT().CreateRefreshToken(gomock.Any(), userID.String(), gomock.Any(), gomock.Any()).Return(errors.New("Error create refreshToken"))
-
-	jwtManager := jwt.NewJWTManager("access-secret", "refresh-secret", time.Minute, time.Hour)
-
-	auth := &service.Auth{UserProvider: mockUserProvider, RefreshTokenSaver: mockRefreshTokenSaver, Jwt: jwtManager}
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID.String()).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID.String()).Return(refreshToken, nil)
+	mocks.userProvider.EXPECT().ReadUser(gomock.Any(), email).Return(testUser, nil)
+	mocks.refreshTokenSaver.EXPECT().CreateRefreshToken(gomock.Any(), userID.String(), gomock.Any(), gomock.Any()).Return(errors.New("Error create refreshToken"))
 
 	tokens, err := auth.LoginUser(context.Background(), email, password)
 
@@ -202,14 +198,12 @@ func TestAuth_LogoutUser_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	token := "refresh-token"
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenRemover := mocks.NewMockRefreshTokenRemover(ctrl)
 
-	mockJwt.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: UUID}, nil)
-	mockRefreshTokenRemover.EXPECT().DeleteRefreshToken(gomock.Any(), UUID, token).Return(nil)
-
-	auth := &service.Auth{RefreshTokenRemover: mockRefreshTokenRemover, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: UUID}, nil)
+	mocks.refreshTokenRemover.EXPECT().DeleteRefreshToken(gomock.Any(), UUID, token).Return(nil)
 
 	err := auth.LogoutUser(context.Background(), token)
 
@@ -222,12 +216,11 @@ func TestAuth_Logout_ErrorParseToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	token := "refresh-token"
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
 
-	mockJwt.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{}, errors.New("Error parse token"))
-
-	auth := &service.Auth{Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{}, errors.New("Error parse token"))
 
 	err := auth.LogoutUser(context.Background(), token)
 
@@ -240,15 +233,13 @@ func TestAuth_Logout_ErrorRemoveToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	token := "refresh-token"
 	userID := uuid.New().String()
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenRemover := mocks.NewMockRefreshTokenRemover(ctrl)
 
-	mockJwt.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}, nil)
-	mockRefreshTokenRemover.EXPECT().DeleteRefreshToken(gomock.Any(), userID, token).Return(errors.New("Error remove token"))
-
-	auth := &service.Auth{RefreshTokenRemover: mockRefreshTokenRemover, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(token).Return(&jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}, nil)
+	mocks.refreshTokenRemover.EXPECT().DeleteRefreshToken(gomock.Any(), userID, token).Return(errors.New("Error remove token"))
 
 	err := auth.LogoutUser(context.Background(), token)
 
@@ -261,20 +252,17 @@ func TestAuth_RefreshToken_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	refreshToken := "refresh-token"
 	accessToken := "access-token"
 	userID := uuid.New().String()
 	tokenClaim := &jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}
 
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenProvider := mocks.NewMockRefreshTokenProvider(ctrl)
-
-	mockJwt.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
-	mockJwt.EXPECT().GenerateRefreshToken(userID).Return(refreshToken, nil)
-	mockRefreshTokenProvider.EXPECT().UpdateRefreshToken(gomock.Any(), userID, refreshToken, refreshToken, gomock.Any()).Return(nil)
-
-	auth := &service.Auth{RefreshTokenProvider: mockRefreshTokenProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID).Return(refreshToken, nil)
+	mocks.refreshTokenUpdater.EXPECT().UpdateRefreshToken(gomock.Any(), userID, refreshToken, refreshToken, gomock.Any()).Return(nil)
 
 	tokens, err := auth.RefreshTokens(context.Background(), refreshToken)
 
@@ -289,20 +277,17 @@ func TestAuth_RefreshToken_ErrorUpdateToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	refreshToken := "refresh-token"
 	accessToken := "access-token"
 	userID := uuid.New().String()
 	tokenClaim := &jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}
 
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenProvider := mocks.NewMockRefreshTokenProvider(ctrl)
-
-	mockJwt.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
-	mockJwt.EXPECT().GenerateRefreshToken(userID).Return(refreshToken, nil)
-	mockRefreshTokenProvider.EXPECT().UpdateRefreshToken(gomock.Any(), userID, refreshToken, refreshToken, gomock.Any()).Return(errors.New("Error update token"))
-
-	auth := &service.Auth{RefreshTokenProvider: mockRefreshTokenProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID).Return(refreshToken, nil)
+	mocks.refreshTokenUpdater.EXPECT().UpdateRefreshToken(gomock.Any(), userID, refreshToken, refreshToken, gomock.Any()).Return(errors.New("Error update token"))
 
 	tokens, err := auth.RefreshTokens(context.Background(), refreshToken)
 
@@ -317,19 +302,16 @@ func TestAuth_RefreshToken_ErrorGenerateRefreshToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	refreshToken := "refresh-token"
 	accessToken := "access-token"
 	userID := uuid.New().String()
 	tokenClaim := &jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}
 
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenProvider := mocks.NewMockRefreshTokenProvider(ctrl)
-
-	mockJwt.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
-	mockJwt.EXPECT().GenerateRefreshToken(userID).Return("", errors.New("Error generate refresh token"))
-
-	auth := &service.Auth{RefreshTokenProvider: mockRefreshTokenProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID).Return(accessToken, nil)
+	mocks.jwtMethods.EXPECT().GenerateRefreshToken(userID).Return("", errors.New("Error generate refresh token"))
 
 	tokens, err := auth.RefreshTokens(context.Background(), refreshToken)
 
@@ -344,17 +326,14 @@ func TestAuth_RefreshToken_ErrorGenerateAccessToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	refreshToken := "refresh-token"
 	userID := uuid.New().String()
 	tokenClaim := &jwt.TokenClaims{RegisteredClaims: j.RegisteredClaims{}, UserID: userID}
 
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenProvider := mocks.NewMockRefreshTokenProvider(ctrl)
-
-	mockJwt.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
-	mockJwt.EXPECT().GenerateAccessToken(userID).Return("", errors.New("Error generate access token"))
-
-	auth := &service.Auth{RefreshTokenProvider: mockRefreshTokenProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, nil)
+	mocks.jwtMethods.EXPECT().GenerateAccessToken(userID).Return("", errors.New("Error generate access token"))
 
 	tokens, err := auth.RefreshTokens(context.Background(), refreshToken)
 
@@ -369,15 +348,12 @@ func TestAuth_RefreshToken_ErrorParseRefreshToken(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	auth, mocks := setupAuthMocks(ctrl)
+
 	refreshToken := "refresh-token"
 	tokenClaim := &jwt.TokenClaims{}
 
-	mockJwt := mocks.NewMockJWTMethods(ctrl)
-	mockRefreshTokenProvider := mocks.NewMockRefreshTokenProvider(ctrl)
-
-	mockJwt.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, errors.New("Error parse token"))
-
-	auth := &service.Auth{RefreshTokenProvider: mockRefreshTokenProvider, Jwt: mockJwt}
+	mocks.jwtMethods.EXPECT().ParseRefreshToken(refreshToken).Return(tokenClaim, errors.New("Error parse token"))
 
 	tokens, err := auth.RefreshTokens(context.Background(), refreshToken)
 

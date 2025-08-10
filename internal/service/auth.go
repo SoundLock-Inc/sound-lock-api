@@ -45,31 +45,52 @@ type RefreshTokenRemover interface {
 
 // Auth реализует бизнес-логику, связанную с аутентификацией и управлением пользователями.
 type Auth struct {
-	UserSaver            UserSaver
-	UserProvider         UserProvider
-	RefreshTokenSaver    RefreshTokenSaver
-	RefreshTokenProvider RefreshTokenProvider
-	RefreshTokenRemover  RefreshTokenRemover
-	Jwt                  JWTMethods
+	userSaver            UserSaver
+	userProvider         UserProvider
+	refreshTokenSaver    RefreshTokenSaver
+	refreshTokenProvider RefreshTokenProvider
+	refreshTokenRemover  RefreshTokenRemover
+	jwt                  JWTMethods
 	accessTokenTTL       time.Duration
 	refreshTokenTTL      time.Duration
 }
 
+func newAuthTest(
+	userProvider UserProvider,
+	userSaver UserSaver,
+	refreshTokenSaver RefreshTokenSaver,
+	refreshTokenProvider RefreshTokenProvider,
+	refreshTokenRemover RefreshTokenRemover,
+	jwtMethods JWTMethods,
+	accessTokenTTL, refreshTokenTTL time.Duration,
+) *Auth {
+	return &Auth{
+		userSaver:            userSaver,
+		userProvider:         userProvider,
+		refreshTokenSaver:    refreshTokenSaver,
+		refreshTokenProvider: refreshTokenProvider,
+		refreshTokenRemover:  refreshTokenRemover,
+		jwt:                  jwtMethods,
+		accessTokenTTL:       accessTokenTTL,
+		refreshTokenTTL:      refreshTokenTTL,
+	}
+}
+
 // NewAuth создает новый экземпляр Auth с переданными зависимостями.
 func NewAuth(
-	authStorage *storage.User,
+	userStorage *storage.User,
 	refreshTokenStorage *storage.RefreshTokenStorage,
 	jwt *jwt.JWTManager,
 	accessTokenTTL time.Duration,
 	refreshTokenTTL time.Duration,
 ) *Auth {
 	return &Auth{
-		Jwt:                  jwt,
-		UserSaver:            authStorage,
-		UserProvider:         authStorage,
-		RefreshTokenSaver:    refreshTokenStorage,
-		RefreshTokenProvider: refreshTokenStorage,
-		RefreshTokenRemover:  refreshTokenStorage,
+		jwt:                  jwt,
+		userSaver:            userStorage,
+		userProvider:         userStorage,
+		refreshTokenSaver:    refreshTokenStorage,
+		refreshTokenProvider: refreshTokenStorage,
+		refreshTokenRemover:  refreshTokenStorage,
 		accessTokenTTL:       accessTokenTTL,
 		refreshTokenTTL:      refreshTokenTTL,
 	}
@@ -83,7 +104,7 @@ func (a *Auth) RegisterUser(ctx context.Context, email, password string) (string
 		return "", err
 	}
 
-	uuid, err := a.UserSaver.CreateUser(ctx, email, string(passHash))
+	uuid, err := a.userSaver.CreateUser(ctx, email, string(passHash))
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +115,7 @@ func (a *Auth) RegisterUser(ctx context.Context, email, password string) (string
 // LoginUser выполняет аутентификацию пользователя, сравнивает пароль,
 // генерирует access и refresh токены и возвращает их.
 func (a *Auth) LoginUser(ctx context.Context, email, password string) (models.Tokens, error) {
-	user, err := a.UserProvider.ReadUser(ctx, email)
+	user, err := a.userProvider.ReadUser(ctx, email)
 	if err != nil {
 		return models.Tokens{}, err
 	}
@@ -106,19 +127,19 @@ func (a *Auth) LoginUser(ctx context.Context, email, password string) (models.To
 
 	tokens := models.Tokens{}
 
-	access, err := a.Jwt.GenerateAccessToken(user.UUID.String())
+	access, err := a.jwt.GenerateAccessToken(user.UUID.String())
 	if err != nil {
 		return models.Tokens{}, err
 	}
 	tokens.AccessToken = access
 
-	refresh, err := a.Jwt.GenerateRefreshToken(user.UUID.String())
+	refresh, err := a.jwt.GenerateRefreshToken(user.UUID.String())
 	if err != nil {
 		return models.Tokens{}, err
 	}
 	tokens.RefreshToken = refresh
 
-	err = a.RefreshTokenSaver.CreateRefreshToken(ctx, user.UUID.String(), refresh, time.Now().Add(a.refreshTokenTTL))
+	err = a.refreshTokenSaver.CreateRefreshToken(ctx, user.UUID.String(), refresh, time.Now().Add(a.refreshTokenTTL))
 	if err != nil {
 		return models.Tokens{}, err
 	}
@@ -128,12 +149,12 @@ func (a *Auth) LoginUser(ctx context.Context, email, password string) (models.To
 
 // LogoutUser выполняет выход пользователя.
 func (a *Auth) LogoutUser(ctx context.Context, refreshToken string) error {
-	claims, err := a.Jwt.ParseRefreshToken(refreshToken)
+	claims, err := a.jwt.ParseRefreshToken(refreshToken)
 	if err != nil {
 		return fmt.Errorf("error parse token %w", err)
 	}
 
-	err = a.RefreshTokenRemover.DeleteRefreshToken(ctx, claims.UserID, refreshToken)
+	err = a.refreshTokenRemover.DeleteRefreshToken(ctx, claims.UserID, refreshToken)
 	if err != nil {
 		return fmt.Errorf("failed remove token %w", err)
 	}
@@ -145,24 +166,24 @@ func (a *Auth) LogoutUser(ctx context.Context, refreshToken string) error {
 func (a *Auth) RefreshTokens(ctx context.Context, refreshToken string) (models.Tokens, error) {
 	var tokens models.Tokens
 
-	claims, err := a.Jwt.ParseRefreshToken(refreshToken)
+	claims, err := a.jwt.ParseRefreshToken(refreshToken)
 	if err != nil {
 		return models.Tokens{}, fmt.Errorf("error parse token %w", err)
 	}
 
-	access, err := a.Jwt.GenerateAccessToken(claims.UserID)
+	access, err := a.jwt.GenerateAccessToken(claims.UserID)
 	if err != nil {
 		return models.Tokens{}, fmt.Errorf("failed generate access token %w", err)
 	}
 	tokens.AccessToken = access
 
-	refresh, err := a.Jwt.GenerateRefreshToken(claims.UserID)
+	refresh, err := a.jwt.GenerateRefreshToken(claims.UserID)
 	if err != nil {
 		return models.Tokens{}, fmt.Errorf("failed generate refresh token %w", err)
 	}
 	tokens.RefreshToken = refresh
 
-	err = a.RefreshTokenProvider.UpdateRefreshToken(ctx, claims.UserID, refresh, refreshToken, time.Now().Add(a.refreshTokenTTL))
+	err = a.refreshTokenProvider.UpdateRefreshToken(ctx, claims.UserID, refresh, refreshToken, time.Now().Add(a.refreshTokenTTL))
 	if err != nil {
 		return models.Tokens{}, fmt.Errorf("failed update refresh token %w", err)
 	}

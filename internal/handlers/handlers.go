@@ -3,6 +3,7 @@ package handlers
 import (
 	audio "sound_lock/internal/handlers/audio_password"
 	"sound_lock/internal/handlers/auth"
+	"sound_lock/internal/handlers/profile"
 	"sound_lock/internal/handlers/users"
 	"sound_lock/internal/service"
 
@@ -13,8 +14,9 @@ import (
 // Handlers — структура, содержащая экземпляр Echo,
 // чтобы централизованно настраивать все роуты приложения.
 type Handlers struct {
-	e           *echo.Echo
-	authService *service.Auth
+	e              *echo.Echo
+	authService    *service.Auth
+	profileService *service.ProfileService
 }
 
 // New — конструктор, создающий новый экземпляр Handlers
@@ -36,6 +38,10 @@ func (h *Handlers) SetupHandlers() {
 	// Группа эндпоинтов для аутентификации (/api/v1/auth)
 	authGroup := api.Group("/auth")
 	auth.New(h.authService).SetupAuthHandlers(authGroup)
+
+	// Группа эндпоинтов для профиля (/api/v1/profile)
+	profileGroup := api.Group("/profile")
+	profile.New(h.profileService).SetupProfileHandler(profileGroup)
 
 	// Группа эндпоинтов, связанных с пользователями (/api/v1/users)
 	usersGroup := api.Group("/users")

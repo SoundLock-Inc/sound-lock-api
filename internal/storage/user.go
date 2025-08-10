@@ -30,12 +30,12 @@ func NewUser(db UserExecutor) *User {
 // На вход принимает email и захешированный пароль.
 // Возвращает UUID созданного пользователя в виде строки.
 // Если при выполнении запроса произошла ошибка, возвращает её наружу.
-func (a *User) CreateUser(ctx context.Context, email, password string) (string, error) {
+func (u *User) CreateUser(ctx context.Context, email, password string) (string, error) {
 	var id uuid.UUID
 
 	query := "insert into users (email, password) values ($1, $2) returning id"
 
-	err := a.db.QueryRow(ctx, query, email, password).Scan(&id)
+	err := u.db.QueryRow(ctx, query, email, password).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("failed to insert user: %w", err)
 	}
@@ -46,14 +46,30 @@ func (a *User) CreateUser(ctx context.Context, email, password string) (string, 
 // ReadUser - возвращает данные пользователя по его email.
 // Достает id, email и пароль (захешированный) из базы данных.
 // Возвращает структуру UserDTO или ошибку, если пользователь не найден.
-func (a *User) ReadUser(ctx context.Context, email string) (models.UserDTO, error) {
+func (u *User) ReadUser(ctx context.Context, email string) (models.UserDTO, error) {
 	var user models.UserDTO
 
 	query := "select id, email, password from users where email=$1"
 
-	err := a.db.QueryRow(ctx, query, email).Scan(&user.UUID, &user.Email, &user.Password)
+	err := u.db.QueryRow(ctx, query, email).Scan(&user.UUID, &user.Email, &user.Password)
 	if err != nil {
 		return models.UserDTO{}, fmt.Errorf("failed: %w", err)
+	}
+
+	return user, nil
+}
+
+// ReadUserByID — возвращает данные пользователя по его UUID.
+// Достает UUID, email и захешированный пароль.
+// Если пользователь не найден — возвращает models.UserDTO{} и ошибку.
+func (u *User) ReadUserByID(ctx context.Context, userID string) (models.UserDTO, error) {
+	var user models.UserDTO
+
+	query := "select id, email, password from users where id=$1"
+
+	err := u.db.QueryRow(ctx, query, userID).Scan(&user.UUID, &user.Email, &user.Password)
+	if err != nil {
+		return models.UserDTO{}, err
 	}
 
 	return user, nil

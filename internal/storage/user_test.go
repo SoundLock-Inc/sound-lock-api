@@ -112,3 +112,53 @@ func TestStorage_ReadUser_ErrorReadUser(t *testing.T) {
 	require.Equal(t, eUser, user)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+// TestStorage_ReadUserByID_Success проверяет успешное получение пользователя по ID.
+// Ожидается:
+//   - корректное заполнение структуры UserDTO;
+//   - отсутствие ошибок;
+//   - совпадение переданного ID с полученным;
+//   - выполнение всех ожиданий мок-объекта.
+func TestStorage_ReadUserByID_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	us := storage.NewUser(mock)
+
+	userID := uuid.New().String()
+	email := "email"
+	password := "password"
+
+	mock.ExpectQuery("select id, email, password from users").WithArgs(userID).WillReturnRows(pgxmock.NewRows([]string{"id", "email", "password"}).AddRow(userID, email, password))
+
+	u, err := us.ReadUserByID(context.Background(), userID)
+
+	require.NoError(t, err)
+	require.Equal(t, userID, u.UUID.String())
+	require.Equal(t, email, u.Email)
+	require.Equal(t, password, u.Password)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestStorage_ReadUserByID_ErrorReadUser проверяет обработку ошибки при получении пользователя по ID.
+// Ожидается:
+//   - возврат ошибки от метода ReadUserByID;
+//   - возврат пустой структуры UserDTO;
+//   - выполнение всех ожиданий мок-объекта.
+func TestStorage_ReadUserByID_ErrorReadUser(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	us := storage.NewUser(mock)
+
+	userID := uuid.New().String()
+
+	mock.ExpectQuery("select id, email, password from users").WithArgs(userID).WillReturnError(errors.New("Error read user"))
+
+	u, err := us.ReadUserByID(context.Background(), userID)
+
+	require.Error(t, err)
+	require.Equal(t, models.UserDTO{}, u)
+}
