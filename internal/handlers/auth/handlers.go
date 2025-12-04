@@ -3,8 +3,11 @@ package auth
 import (
 	"context"
 	"net/http"
+	"sound_lock/internal/config"
 	"sound_lock/internal/domain/models"
+	"sound_lock/internal/lib/jwt"
 
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 )
 
@@ -19,14 +22,24 @@ type AuthService interface {
 // Handlers — структура для хранения группы маршрутов Echo, связанных с аутентификацией.
 type Handlers struct {
 	authService AuthService // Service по работе с авторизацией
+	cfg         *config.Config
 }
 
 // New — конструктор Handlers, принимает Echo-группу и возвращает объект Handlers.
 func New(
 	authService AuthService,
+	cfg *config.Config,
 ) *Handlers {
 	return &Handlers{
 		authService: authService,
+		cfg:         cfg,
+	}
+}
+
+func newForTest(authService AuthService) *Handlers {
+	return &Handlers{
+		authService: authService,
+		cfg:         &config.Config{},
 	}
 }
 
@@ -34,8 +47,9 @@ func New(
 func (h *Handlers) SetupAuthHandlers(eg *echo.Group) {
 	eg.POST("/login", h.login)       // Эндпоинт для входа в систему
 	eg.POST("/register", h.register) // Эндпоинт для регистрации нового пользователя
-	eg.PATCH("/refresh", h.refresh)  // Эндпоинт для обновления токена
-	eg.POST("/logout", h.logout)     // Эндпоинт для выхода пользователя из системы
+	eg.Use(echojwt.WithConfig(jwt.GetConfig(h.cfg.AccessTokenSigningKey)))
+	eg.PATCH("/refresh", h.refresh) // Эндпоинт для обновления токена
+	eg.POST("/logout", h.logout)    // Эндпоинт для выхода пользователя из системы
 }
 
 // login — обработчик для входа пользователя в систему.

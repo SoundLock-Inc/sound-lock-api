@@ -162,3 +162,18 @@ func TestStorage_ReadUserByID_ErrorReadUser(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, models.UserDTO{}, u)
 }
+
+// func TestStorage_UpdateUser_Success(t *testing.T) {
+// 	mock, err := pgxmock.NewPool()
+// 	require.NoError(t, err)
+// 	defer mock.Close()
+
+// 	us := storage.NewUser(mock)
+
+// 	userEmail := "test@mail.ru"
+// 	password := "password"
+// 	updatedAt := time.Now()
+
+// 	mock.ExpectQuery("update users").WithArgs("test@mail.ru", "password", updatedAt).WillReturnRows(pgxmock.NewRows([]string{"email", "password"}).AddRows([]any{userEmail, password}))
+
+// }

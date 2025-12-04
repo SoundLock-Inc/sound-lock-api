@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	echojwt "github.com/labstack/echo-jwt/v4"
+	"github.com/labstack/echo/v4"
 )
 
 // JWTManager отвечает за генерацию и валидацию access/refresh токенов
@@ -32,6 +34,16 @@ func NewJWTManager(
 type TokenClaims struct {
 	jwt.RegisteredClaims
 	UserID string `json:"user_id"`
+}
+
+func GetConfig(accessSecret string) echojwt.Config {
+	var jwtConfig = echojwt.Config{
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return new(TokenClaims)
+		},
+		SigningKey: []byte(accessSecret),
+	}
+	return jwtConfig
 }
 
 // GenerateAccessToken создает новый access-токен для конкретного пользователя
@@ -74,14 +86,22 @@ func (m *JWTManager) GenerateRefreshToken(userID string) (string, error) {
 	return refreshToken, nil
 }
 
+// ParseAccessToken проверяет и извлекает данные из строки access токена.
+// Возвращает структуру с данными токена (claims) или ошибку.
 func (m *JWTManager) ParseAccessToken(tokenString string) (*TokenClaims, error) {
 	return m.parse(tokenString, m.accessSecret)
 }
 
+// ParseRefreshToken проверяет и извлекает данные из строки refresh токена.
+// Возвращает структуру с данными токена (claims) или ошибку.
 func (m *JWTManager) ParseRefreshToken(tokenString string) (*TokenClaims, error) {
 	return m.parse(tokenString, m.refreshSecret)
 }
 
+// parse выполняет базовую операцию верификации JWT токена и извлечения claims.
+// Возвращает:
+// - TokenClaims при успешной проверке
+// - Ошибку при любой проблеме верификации или несоответствии структуры
 func (m *JWTManager) parse(tokenString string, secret []byte) (*TokenClaims, error) {
 	token, err := jwt.ParseWithClaims(
 		tokenString,

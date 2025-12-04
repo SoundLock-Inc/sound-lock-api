@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"sound_lock/internal/domain/models"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type UserExecutor interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
 // User - структура для работы с таблицами пользователей и авторизацией.
@@ -73,4 +76,16 @@ func (u *User) ReadUserByID(ctx context.Context, userID string) (models.UserDTO,
 	}
 
 	return user, nil
+}
+
+func (u *User) UpdateUser(ctx context.Context, userDTO models.UserDTO) (models.UserDTO, error) {
+	var updatedUserDTO models.UserDTO
+
+	query := "update users set email = $1, password = $2, updated_at = $3 where id = $4 returning email, password"
+	updatedAt := time.Now()
+	err := u.db.QueryRow(ctx, query, userDTO.Email, userDTO.Password, updatedAt).Scan(&updatedUserDTO.Email, &updatedUserDTO.Password)
+	if err != nil {
+		return models.UserDTO{}, err
+	}
+	return updatedUserDTO, nil
 }

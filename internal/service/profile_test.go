@@ -93,3 +93,52 @@ func TestProfileService_ProfileUser_ErrorGetProfile(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, eUser, u)
 }
+
+func TestProfileService_ChangeProfileUser_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	s, m := setUp(ctrl)
+
+	userID := uuid.New()
+
+	user := models.UserDTO{
+		UUID:     userID,
+		Email:    "email",
+		Password: "password",
+	}
+
+	expectedUser := models.User{
+		ID:    userID,
+		Email: "email",
+	}
+
+	m.profileProviderMock.EXPECT().UpdateUser(gomock.Any(), user).Return(user, nil)
+
+	u, err := s.ChangeProfileUser(context.Background(), user)
+	require.NoError(t, err)
+	require.Equal(t, expectedUser, u)
+	require.Equal(t, "email", u.Email)
+}
+
+func TestProfileService_ChangeProfileUser_ErrorUpdateUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	s, m := setUp(ctrl)
+
+	userID := uuid.New()
+
+	user := models.UserDTO{
+		UUID:     userID,
+		Email:    "email",
+		Password: "password",
+	}
+
+	m.profileProviderMock.EXPECT().UpdateUser(gomock.Any(), user).Return(models.UserDTO{}, errors.New("Error"))
+
+	u, err := s.ChangeProfileUser(context.Background(), user)
+
+	require.Error(t, err)
+	require.Equal(t, models.User{}, u)
+}

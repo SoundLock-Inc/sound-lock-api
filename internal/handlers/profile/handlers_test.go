@@ -26,6 +26,7 @@ import (
 func TestHandlers_Profile_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+
 	mockProfileService := mocks.NewMockProfileService(ctrl)
 
 	h := New(mockProfileService)
@@ -44,7 +45,8 @@ func TestHandlers_Profile_Success(t *testing.T) {
 
 	mockProfileService.EXPECT().ProfileUser(gomock.Any(), gomock.Any()).Return(user, nil)
 
-	h.profile(c)
+	err := h.getProfile(c)
+	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &user))
 }
@@ -78,6 +80,22 @@ func TestHandlers_Profile_ErrorGetProfile(t *testing.T) {
 
 	mockProfileService.EXPECT().ProfileUser(gomock.Any(), gomock.Any()).Return(user, errors.New("Error get profile"))
 
-	h.profile(c)
+	err := h.getProfile(c)
+	require.NoError(t, err)
 	require.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+func TestHandlers_UpdateProfile_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockProfileService := mocks.NewMockProfileService(ctrl)
+
+	h := New(mockProfileService)
+	e := echo.New()
+
+	group := e.Group("/profile")
+	h.SetupProfileHandler(group)
+
+	//req := httptest.NewRequest(http.MethodPatch, "/profile", nil)
 }

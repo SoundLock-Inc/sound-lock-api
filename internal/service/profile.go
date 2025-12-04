@@ -14,6 +14,7 @@ import (
 // или через внешний сервис.
 type ProfileProvider interface {
 	ReadUserByID(ctx context.Context, userID string) (models.UserDTO, error)
+	UpdateUser(ctx context.Context, userDTO models.UserDTO) (models.UserDTO, error)
 }
 
 // ProfileService — слой бизнес-логики, отвечающий за операции с профилем пользователя.
@@ -53,6 +54,19 @@ func (p *ProfileService) ProfileUser(ctx context.Context, userID uuid.UUID) (mod
 	}
 
 	userDTO.ToUser(&user)
+
+	return user, nil
+}
+
+func (p *ProfileService) ChangeProfileUser(ctx context.Context, userDTO models.UserDTO) (models.User, error) {
+	var user models.User
+
+	u, err := p.profileProvider.UpdateUser(ctx, userDTO)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	u.ToUser(&user)
 
 	return user, nil
 }

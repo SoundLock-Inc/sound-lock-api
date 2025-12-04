@@ -44,8 +44,8 @@ func (m *MockAuthService) RefreshTokens(ctx context.Context, refreshToken string
 // TestHandlers_Login_Succes проверяет успешный сценарий логина.
 // Отправляется корректный JSON, мок возвращает токены, ожидается статус 200 и корректный JSON в ответе.
 func TestHandlers_Login_Succes(t *testing.T) {
-	mockAuthSerice := new(MockAuthService)
-	h := New(mockAuthSerice)
+	mockAuthService := new(MockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -65,7 +65,7 @@ func TestHandlers_Login_Succes(t *testing.T) {
 	}
 
 	var tokens models.Tokens
-	mockAuthSerice.On("LoginUser", c.Request().Context(), "test@example.com", "12345").Return(expectedTokens, nil)
+	mockAuthService.On("LoginUser", c.Request().Context(), "test@example.com", "12345").Return(expectedTokens, nil)
 
 	h.login(c)
 
@@ -78,7 +78,7 @@ func TestHandlers_Login_Succes(t *testing.T) {
 // Ожидается возврат статуса 500.
 func TestHandlers_Login_ErrorLoginUser(t *testing.T) {
 	mockAuthSerice := new(MockAuthService)
-	h := New(mockAuthSerice)
+	h := newForTest(mockAuthSerice)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -103,7 +103,7 @@ func TestHandlers_Login_ErrorLoginUser(t *testing.T) {
 // Ожидается возврат статуса 400.
 func TestHandlers_Login_ErrorParseRequest(t *testing.T) {
 	mockAuthSerice := new(MockAuthService)
-	h := New(mockAuthSerice)
+	h := newForTest(mockAuthSerice)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -126,7 +126,7 @@ func TestHandlers_Login_ErrorParseRequest(t *testing.T) {
 // Ожидается возврат статуса 201 и ID созданного пользователя в JSON.
 func TestHandlers_Register_Success(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -163,7 +163,7 @@ func TestHandlers_Register_Success(t *testing.T) {
 // Ожидается возврат статуса 500.
 func TestHandlers_Register_ErrorRegisterUser(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -188,7 +188,7 @@ func TestHandlers_Register_ErrorRegisterUser(t *testing.T) {
 // Ожидается возврат статуса 400.
 func TestHandlers_Register_ErrorParseRegisterRequest(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 
 	group := e.Group("/auth")
@@ -210,7 +210,7 @@ func TestHandlers_Register_ErrorParseRegisterRequest(t *testing.T) {
 // Ожидается возврат статуса 200 и пустой ответ.
 func TestHandlers_Logout_Success(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)
@@ -234,7 +234,7 @@ func TestHandlers_Logout_Success(t *testing.T) {
 // Ожидается возврат статуса 500.
 func TestHandlers_Logout_ErrorLogoutUser(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)
@@ -257,7 +257,7 @@ func TestHandlers_Logout_ErrorLogoutUser(t *testing.T) {
 // Ожидается возврат статуса 400.
 func TestHandlers_Logout_ErrorParseLogoutRequest(t *testing.T) {
 	mockAuthService := new(MockAuthService)
-	h := New(mockAuthService)
+	h := newForTest(mockAuthService)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)
@@ -278,7 +278,7 @@ func TestHandlers_Logout_ErrorParseLogoutRequest(t *testing.T) {
 // Ожидается возврат статуса 200 и новый набор токенов в JSON.
 func TestHandlers_RefreshToken_Success(t *testing.T) {
 	mockAuthSercie := new(MockAuthService)
-	h := New(mockAuthSercie)
+	h := newForTest(mockAuthSercie)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)
@@ -308,7 +308,7 @@ func TestHandlers_RefreshToken_Success(t *testing.T) {
 // Ожидается возврат статуса 500.
 func TestHandlers_RefreshToken_ErrorRefreshToken(t *testing.T) {
 	mockAuthSercie := new(MockAuthService)
-	h := New(mockAuthSercie)
+	h := newForTest(mockAuthSercie)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)
@@ -332,7 +332,7 @@ func TestHandlers_RefreshToken_ErrorRefreshToken(t *testing.T) {
 // Ожидается возврат статуса 400.
 func TestHandlers_RefreshToken_ErrorParseRefreshTokenRequest(t *testing.T) {
 	mockAuthSercie := new(MockAuthService)
-	h := New(mockAuthSercie)
+	h := newForTest(mockAuthSercie)
 	e := echo.New()
 	group := e.Group("/auth")
 	h.SetupAuthHandlers(group)

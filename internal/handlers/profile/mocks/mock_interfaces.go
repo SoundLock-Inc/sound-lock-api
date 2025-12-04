@@ -36,6 +36,21 @@ func (m *MockProfileService) EXPECT() *MockProfileServiceMockRecorder {
 	return m.recorder
 }
 
+// ChangeProfileUser mocks base method.
+func (m *MockProfileService) ChangeProfileUser(ctx context.Context, userDTO models.UserDTO) (models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChangeProfileUser", ctx, userDTO)
+	ret0, _ := ret[0].(models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ChangeProfileUser indicates an expected call of ChangeProfileUser.
+func (mr *MockProfileServiceMockRecorder) ChangeProfileUser(ctx, userDTO interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChangeProfileUser", reflect.TypeOf((*MockProfileService)(nil).ChangeProfileUser), ctx, userDTO)
+}
+
 // ProfileUser mocks base method.
 func (m *MockProfileService) ProfileUser(ctx context.Context, userID uuid.UUID) (models.User, error) {
 	m.ctrl.T.Helper()

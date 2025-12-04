@@ -49,3 +49,18 @@ func (mr *MockProfileProviderMockRecorder) ReadUserByID(ctx, userID interface{})
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadUserByID", reflect.TypeOf((*MockProfileProvider)(nil).ReadUserByID), ctx, userID)
 }
+
+// UpdateUser mocks base method.
+func (m *MockProfileProvider) UpdateUser(ctx context.Context, userDTO models.UserDTO) (models.UserDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUser", ctx, userDTO)
+	ret0, _ := ret[0].(models.UserDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateUser indicates an expected call of UpdateUser.
+func (mr *MockProfileProviderMockRecorder) UpdateUser(ctx, userDTO interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUser", reflect.TypeOf((*MockProfileProvider)(nil).UpdateUser), ctx, userDTO)
+}
