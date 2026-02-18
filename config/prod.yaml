@@ -1,5 +1,3 @@
 env: "prod"
-access_token_ttl: 1h
-refresh_token_ttl: 168h
 port: 8080
 host: "0.0.0.0"
